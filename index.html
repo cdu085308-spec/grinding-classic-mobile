@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#173f5f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>磨矿分析系统 · 经典版</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23173f5f'/%3E%3Cpath d='M18 20h28v8H18zm5 13h18v13H23z' fill='%23f3b24a'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <span class="edition">经典版 v1.0</span>
+        <h1>磨矿分析</h1>
+      </div>
+      <span class="offline-state">离线计算</span>
+    </header>
+
+    <main class="app-shell">
+      <nav class="tab-bar" aria-label="功能菜单">
+        <button class="tab-button active" data-tab="composition" type="button">配料</button>
+        <button class="tab-button" data-tab="grinding" type="button">磨矿</button>
+        <button class="tab-button" data-tab="curves" type="button">曲线</button>
+        <button class="tab-button" data-tab="report" type="button">报告</button>
+      </nav>
+
+      <section class="tab-panel active" id="tab-composition">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">矿物组成</p>
+            <h2>矿石配料</h2>
+          </div>
+          <button class="text-button" id="resetAll" type="button">重置</button>
+        </div>
+
+        <div class="field-grid">
+          <label class="field field-wide">
+            <span>矿物</span>
+            <select id="mineralSelect"></select>
+          </label>
+          <label class="field">
+            <span>含量 (%)</span>
+            <input id="mineralContent" type="number" min="0.1" max="100" step="0.1" value="10" inputmode="decimal" />
+          </label>
+          <label class="field">
+            <span>嵌布粒度 (μm)</span>
+            <input id="grainSize" type="number" min="1" max="5000" step="1" value="100" inputmode="numeric" />
+          </label>
+        </div>
+
+        <div class="mineral-meta" id="mineralMeta"></div>
+        <button class="primary-button" id="addMineral" type="button">加入配料</button>
+
+        <div class="subsection-heading">
+          <h3>当前配料</h3>
+          <strong id="totalContent">0.0%</strong>
+        </div>
+        <div class="mineral-list" id="mineralList">
+          <p class="empty-state">尚未加入矿物，可直接在磨矿页手动输入 Bond Wi。</p>
+        </div>
+        <button class="secondary-button" id="normalizeComposition" type="button" disabled>归一化到 100%</button>
+      </section>
+
+      <section class="tab-panel" id="tab-grinding">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">工艺参数</p>
+            <h2>磨矿条件</h2>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>F80 (μm)</span>
+            <input id="f80" type="number" min="10" max="50000" step="100" value="10000" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>目标 P80 (μm)</span>
+            <input id="targetP80" type="number" min="1" max="5000" step="5" value="74" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>磨机类型</span>
+            <select id="millType">
+              <option value="ball">球磨机</option>
+              <option value="rod">棒磨机</option>
+              <option value="autogenous">自磨机</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>批磨时间 (min)</span>
+            <input id="grindTime" type="number" min="1" max="300" step="1" value="15" inputmode="numeric" />
+          </label>
+          <label class="field field-wide" id="manualWiField">
+            <span>Bond Wi (kWh/t)</span>
+            <input id="manualWi" type="number" min="1" max="50" step="0.1" value="14.2" inputmode="decimal" />
+          </label>
+        </div>
+
+        <div class="notice" id="inputNotice" role="status" aria-live="polite"></div>
+        <button class="primary-button analyze-button" id="analyzeButton" type="button">开始分析</button>
+      </section>
+
+      <section class="tab-panel" id="tab-curves">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">计算结果</p>
+            <h2>P80 变化曲线</h2>
+          </div>
+          <span class="result-badge" id="curveStatus">待计算</span>
+        </div>
+        <div class="chart-wrap">
+          <svg id="p80Chart" viewBox="0 0 720 300" role="img" aria-label="P80随时间变化曲线"></svg>
+        </div>
+        <div class="metric-grid" id="metricGrid"></div>
+
+        <details class="sieve-panel" id="sievePanel">
+          <summary>筛析数据 RR 拟合</summary>
+          <div class="sieve-content">
+            <label class="field">
+              <span>粒度 (μm) 与累计通过率 (%)</span>
+              <textarea id="sieveInput" rows="8">1000,95.2
+500,82.1
+200,63.5
+100,42.3
+74,28.6
+45,15.2
+38,10.8</textarea>
+            </label>
+            <button class="secondary-button" id="fitSieve" type="button">拟合筛析数据</button>
+            <div class="sieve-result" id="sieveResult"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="tab-panel" id="tab-report">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">分析输出</p>
+            <h2>经典版报告</h2>
+          </div>
+        </div>
+        <div class="report-card" id="reportCard">
+          <p class="empty-state">完成磨矿分析后生成报告。</p>
+        </div>
+        <div class="report-actions">
+          <button class="primary-button" id="downloadReport" type="button" disabled>下载报告</button>
+          <button class="secondary-button" id="copyReport" type="button" disabled>复制摘要</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>工艺矿物学磨矿分析系统</span>
+      <span>经典版</span>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
